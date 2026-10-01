@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import app from './app.js';
-import db from './db.js';
+import db from './db/index.js';
 
 const PORT = process.env.PORT || 3000;
 const SHUTDOWN_TIMEOUT_MS = 10_000;
