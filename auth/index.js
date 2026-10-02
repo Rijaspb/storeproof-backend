@@ -1,18 +1,16 @@
-import { SignJWT, jwtVerify } from 'jose';
+import { createRemoteJWKSet, jwtVerify } from 'jose';
 
-if (!process.env.JWT_SECRET) {
-  throw new Error('JWT_SECRET is not set');
+if (!process.env.SUPABASE_URL) {
+  throw new Error('SUPABASE_URL is not set');
 }
 
-const secret = new TextEncoder().encode(process.env.JWT_SECRET);
+const issuer = `${process.env.SUPABASE_URL.replace(/\/$/, '')}/auth/v1`;
+const jwks = createRemoteJWKSet(new URL(`${issuer}/.well-known/jwks.json`));
 
-export const signToken = (payload) =>
-  new SignJWT(payload)
-    .setProtectedHeader({ alg: 'HS256' })
-    .setIssuedAt()
-    .setExpirationTime('2h')
-    .sign(secret);
-
-// Throws if the token is invalid or expired
+// Throws if the token is invalid, expired, or not issued by this Supabase project
 export const verifyToken = async (token) =>
-  (await jwtVerify(token, secret, { algorithms: ['HS256'] })).payload;
+  (await jwtVerify(token, jwks, {
+    issuer,
+    audience: 'authenticated',
+    algorithms: ['ES256'],
+  })).payload;
