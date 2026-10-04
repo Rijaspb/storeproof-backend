@@ -1,13 +1,20 @@
 import { rateLimit } from 'express-rate-limit';
 
 // Per-IP limiter. Counters live in memory, so use a shared store if the app runs on several instances
-export const createLimiter = ({ windowMs, limit, message = 'Too many requests, please try again later' }) =>
+// Pass keyGenerator to count per something other than IP (e.g. the authenticated user)
+export const createLimiter = ({
+  windowMs,
+  limit,
+  message = 'Too many requests, please try again later',
+  ...options
+}) =>
   rateLimit({
     windowMs,
     limit,
     standardHeaders: 'draft-7',
     legacyHeaders: false,
     message: { error: message },
+    ...options,
   });
 
 // Baseline for every route: 300 requests per 15 minutes

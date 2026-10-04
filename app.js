@@ -6,6 +6,7 @@ import authRoutes from './routes/authRoutes.js';
 import incidentRoutes from './routes/incidentRoutes.js';
 import storeRoutes from './routes/storeRoutes.js';
 import contactRoutes from './routes/contactRoutes.js';
+import footageRoutes from './routes/footageRoutes.js';
 import notFound from './middleware/notFound.js';
 import errorHandler from './middleware/errorHandler.js';
 import { globalLimiter } from './middleware/rateLimit.js';
@@ -31,6 +32,7 @@ app.use('/auth', authRoutes);
 app.use('/incidents', incidentRoutes);
 app.use('/store', storeRoutes);
 app.use('/contact', contactRoutes);
+app.use('/incidents/:incidentId/footage', footageRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

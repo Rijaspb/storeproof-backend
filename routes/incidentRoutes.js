@@ -37,13 +37,14 @@ router.get('/:id', async (req, res, next) => {
               i.incident_details, i.police_link, i.notes, i.created_at,
               coalesce(
                 json_agg(json_build_object(
-                  'id', v.id, 'r2_key', v.r2_key, 'created_at', v.created_at
+                  'id', v.id, 'original_filename', v.original_filename,
+                  'size_bytes', v.size_bytes, 'created_at', v.created_at
                 ) order by v.created_at) filter (where v.id is not null),
                 '[]'
               ) as videos
        from public.incidents i
        join public.stores s on s.id = i.store_id
-       left join public.incident_videos v on v.incident_id = i.id
+       left join public.incident_videos v on v.incident_id = i.id and v.status = 'uploaded'
        where i.id = $1 and s.owner_id = $2
        group by i.id`,
       [req.params.id, req.userId],
