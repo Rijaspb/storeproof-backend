@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { randomUUID } from 'node:crypto';
 import db from '../db/index.js';
+import { stamp, incidentFolder } from '../lib/incidentFolder.js';
 import requireAuth from '../middleware/requireAuth.js';
 import { createLimiter } from '../middleware/rateLimit.js';
 import {
@@ -89,7 +90,7 @@ const COLUMNS = `f.id, f.incident_id, f.r2_key, f.upload_id, f.original_filename
 const loadIncident = async (incidentId, userId) => {
   if (!UUID.test(incidentId)) throw incidentNotFound();
   const { rows } = await db.query(
-    `select i.id, i.store_id, i.status
+    `select i.id, i.store_id, i.status, i.incident_at
      from public.incidents i
      join public.stores s on s.id = i.store_id
      where i.id = $1 and s.owner_id = $2`,
@@ -139,7 +140,8 @@ router.post(
     const incident = await loadIncident(req.params.incidentId, req.userId);
     if (incident.status !== 'pending') throw httpError(409, 'Incident is no longer accepting footage');
 
-    const key = `stores/${incident.store_id}/incidents/${incident.id}/${randomUUID()}.${CONTENT_TYPES[contentType]}`;
+    // Folder is stamped with the incident time at first upload and reused after; files with their upload time
+    const key = `${await incidentFolder(incident)}/${stamp(Date.now())}_${randomUUID()}.${CONTENT_TYPES[contentType]}`;
     const uploadId = sizeBytes > PART_SIZE ? await r2(() => createMultipartUpload(key, contentType)) : null;
     const { rows } = await db.query(
       `insert into public.incident_videos (incident_id, r2_key, original_filename, content_type, size_bytes, upload_id, status)

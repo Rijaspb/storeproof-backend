@@ -28,7 +28,30 @@ try {
     }
   }
 
-  console.log(`Cleaned up ${rows.length - failedDeletes} of ${rows.length} upload(s), ${failedDeletes} object delete(s) failed`);
+  // Images: abandoned uploads untouched for 24h. A stuck replacement is dropped (the current image stays);
+  // a stuck first upload has no image to fall back to, so its row goes. Object first, so a failed delete is retried next run.
+  const { rows: staleImages } = await db.query(
+    `select id, status, pending_r2_key, r2_key from public.incident_images
+     where updated_at < now() - interval '24 hours' and (status = 'pending' or pending_r2_key is not null)`,
+  );
+  for (const img of staleImages) {
+    const key = img.pending_r2_key ?? img.r2_key;
+    try {
+      await deleteObject(key);
+      await db.query(
+        img.pending_r2_key
+          ? `update public.incident_images set pending_r2_key = null, pending_filename = null, pending_content_type = null,
+               pending_size_bytes = null where id = $1 and pending_r2_key = $2`
+          : `delete from public.incident_images where id = $1 and r2_key = $2 and status = 'pending'`,
+        [img.id, key],
+      );
+    } catch (err) {
+      failedDeletes += 1;
+      console.error(`Could not clean up image ${img.id}:`, err.message);
+    }
+  }
+
+  console.log(`Cleaned up ${rows.length + staleImages.length - failedDeletes} of ${rows.length + staleImages.length} upload(s), ${failedDeletes} object delete(s) failed`);
   process.exitCode = failedDeletes ? 1 : 0;
 } catch (err) {
   console.error('Cleanup failed:', err.message);

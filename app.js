@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import healthRoutes from './routes/healthRoutes.js';
 import incidentRoutes from './routes/incidentRoutes.js';
+import imageRoutes from './routes/imageRoutes.js';
 import storeRoutes from './routes/storeRoutes.js';
 import contactRoutes from './routes/contactRoutes.js';
 import footageRoutes from './routes/footageRoutes.js';
@@ -21,6 +22,10 @@ app.disable('x-powered-by');
 if (process.env.TRUST_PROXY) app.set('trust proxy', Number(process.env.TRUST_PROXY));
 app.use(morgan('combined', { skip: (req) => req.originalUrl.startsWith('/health') }));
 app.use(helmet());
+app.use((req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+});
 app.use(cors({ origin: process.env.FRONTEND_URL }));
 app.use(globalLimiter);
 app.use(express.json());
@@ -31,6 +36,7 @@ app.get('/', (_req, res) => {
 
 app.use('/health', healthRoutes);
 app.use('/incidents/:incidentId/footage', footageRoutes);
+app.use('/incidents/:incidentId/images', imageRoutes);
 app.use('/incidents', incidentRoutes);
 app.use('/store', storeRoutes);
 app.use('/contact', contactRoutes);
