@@ -78,7 +78,7 @@ router.post('/', async (req, res, next) => {
     if (typeof incident_at !== 'string' || Number.isNaN(incidentAt.getTime())) {
       throw badRequest('incident_at must be a valid date');
     }
-    if (incidentAt > new Date()) throw badRequest('incident_at cannot be in the future');
+    if (incidentAt > new Date(Date.now() + 5 * 60 * 1000)) throw badRequest('incident_at cannot be in the future');
 
     // store_id comes from the verified user, never from the request body
     const { rows } = await db.query(

@@ -3,7 +3,6 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import healthRoutes from './routes/healthRoutes.js';
-import authRoutes from './routes/authRoutes.js';
 import incidentRoutes from './routes/incidentRoutes.js';
 import storeRoutes from './routes/storeRoutes.js';
 import contactRoutes from './routes/contactRoutes.js';
@@ -31,7 +30,6 @@ app.get('/', (_req, res) => {
 });
 
 app.use('/health', healthRoutes);
-app.use('/auth', authRoutes);
 app.use('/incidents/:incidentId/footage', footageRoutes);
 app.use('/incidents', incidentRoutes);
 app.use('/store', storeRoutes);

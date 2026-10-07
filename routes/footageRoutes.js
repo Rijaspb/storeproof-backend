@@ -242,6 +242,7 @@ router.post(
         [row.id],
       );
       await r2(() => deleteObject(row.r2_key));
+      await db.query(`update public.incident_videos set r2_deleted_at = now() where id = $1`, [row.id]);
       throw httpError(422, 'Uploaded file does not match what was approved');
     }
 
