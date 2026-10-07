@@ -5,12 +5,21 @@ import db from './db/index.js';
 const PORT = process.env.PORT || 3000;
 const SHUTDOWN_TIMEOUT_MS = 10_000;
 
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT, (err) => {
+  if (err) return;
   console.log(`Server running on http://localhost:${PORT}`);
 });
 
+server.on('error', (err) => {
+  console.error('Server failed to start:', err.message);
+  process.exit(1);
+});
+
 // Finish in-flight requests and close the DB pool, then exit
+let shuttingDown = false;
 function shutdown(signal, exitCode = 0) {
+  if (shuttingDown) return;
+  shuttingDown = true;
   console.log(`${signal} received, shutting down`);
 
   // Force exit if connections refuse to drain
@@ -30,7 +39,7 @@ function shutdown(signal, exitCode = 0) {
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
 
-// Process state is undefined after these; log and exit so the supervisor restarts us
+// Unexpected process errors can leave the app in an unsafe state; exit so the supervisor restarts it
 process.on('unhandledRejection', (reason) => {
   console.error('Unhandled rejection:', reason);
   shutdown('unhandledRejection', 1);
