@@ -34,7 +34,7 @@ router.get('/:id', async (req, res, next) => {
 
     const { rows } = await db.query(
       `select i.id, i.incident_number, i.incident_at, i.status, i.person_details,
-              i.incident_details, i.police_link, i.notes, i.created_at,
+              i.incident_details, i.police_link, i.crime_reference, i.notes, i.created_at,
               coalesce(
                 json_agg(json_build_object(
                   'id', v.id, 'original_filename', v.original_filename,
@@ -143,7 +143,7 @@ const updateIncident = (column, value) => async (req, res, next) => {
        set ${column} = $3
        from public.stores s
        where i.id = $1 and s.id = i.store_id and s.owner_id = $2
-       returning i.id, i.incident_number, i.status, i.police_link`,
+       returning i.id, i.incident_number, i.status, i.police_link, i.crime_reference`,
       [req.params.id, req.userId, value(req.body ?? {})],
     );
 
@@ -165,6 +165,17 @@ router.patch(
 router.patch(
   '/:id/police-link',
   updateIncident('police_link', ({ police_link }) => optionalUrl(police_link, 'police_link')),
+);
+
+const MAX_CRIME_REFERENCE = 100;
+
+router.patch(
+  '/:id/crime-reference',
+  updateIncident('crime_reference', ({ crime_reference }) => {
+    const text = optionalText(crime_reference, 'crime_reference');
+    if (text !== null && text.length > MAX_CRIME_REFERENCE) throw badRequest('crime_reference is too long');
+    return text;
+  }),
 );
 
 export default router;
