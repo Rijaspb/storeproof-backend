@@ -70,7 +70,8 @@ const handle = (fn) => async (req, res, next) => {
     const requestId = randomUUID();
     console.error(`[footage ${requestId}] ${req.method} ${req.route?.path}:`, err.message);
     res.set('X-Request-Id', requestId);
-    next(Object.assign(new Error('Internal server error'), { status: err.status ?? 500 }));
+    err.status ??= 500;
+    next(err);
   }
 };
 
