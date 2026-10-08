@@ -35,6 +35,11 @@ router.get('/:id', async (req, res, next) => {
     const { rows } = await db.query(
       `select i.id, i.incident_number, i.incident_at, i.status, i.person_details,
               i.incident_details, i.police_link, i.crime_reference, i.notes, i.created_at,
+              coalesce((select json_agg(json_build_object('id', o.id, 'incident_number', o.incident_number)
+                                        order by o.incident_number)
+                          from public.incident_links l
+                          join public.incidents o on o.id = case when l.incident_a = i.id then l.incident_b else l.incident_a end
+                          where i.id in (l.incident_a, l.incident_b)), '[]') as linked_incidents,
               coalesce(
                 json_agg(json_build_object(
                   'id', v.id, 'original_filename', v.original_filename,
@@ -177,5 +182,53 @@ router.patch(
     return text;
   }),
 );
+
+const linkParams = (req) => {
+  const { id, otherId = req.body?.linked_incident_id } = req.params;
+  if (!UUID.test(id)) throw Object.assign(new Error('Incident not found'), { status: 404 });
+  if (typeof otherId !== 'string' || !UUID.test(otherId)) throw badRequest('linked_incident_id must be an incident id');
+  if (id.toLowerCase() === otherId.toLowerCase()) throw badRequest('An incident cannot be linked to itself');
+  return [id, req.userId, otherId];
+};
+
+// Links two incidents of the same store; each pair is stored once, so it shows on both
+router.post('/:id/links', async (req, res, next) => {
+  try {
+    const { rows } = await db.query(
+      `insert into public.incident_links (incident_a, incident_b)
+       select least(a.id, b.id), greatest(a.id, b.id)
+       from public.incidents a
+       join public.stores s on s.id = a.store_id
+       join public.incidents b on b.id = $3 and b.store_id = a.store_id
+       where a.id = $1 and s.owner_id = $2
+       on conflict (incident_a, incident_b) do update set incident_a = excluded.incident_a
+       returning incident_a`,
+      linkParams(req),
+    );
+
+    if (rows.length === 0) throw Object.assign(new Error('Incident not found'), { status: 404 });
+    res.status(201).json({ linked: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete('/:id/links/:otherId', async (req, res, next) => {
+  try {
+    const { rows } = await db.query(
+      `delete from public.incident_links l
+       using public.incidents a, public.stores s
+       where a.id = $1 and s.id = a.store_id and s.owner_id = $2
+         and l.incident_a = least($1::uuid, $3::uuid) and l.incident_b = greatest($1::uuid, $3::uuid)
+       returning l.incident_a`,
+      linkParams(req),
+    );
+
+    if (rows.length === 0) throw Object.assign(new Error('Link not found'), { status: 404 });
+    res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
+});
 
 export default router;
