@@ -148,7 +148,8 @@ const updateIncident = (column, value) => async (req, res, next) => {
        set ${column} = $3
        from public.stores s
        where i.id = $1 and s.id = i.store_id and s.owner_id = $2
-       returning i.id, i.incident_number, i.status, i.police_link, i.crime_reference`,
+       returning i.id, i.incident_number, i.status, i.police_link, i.crime_reference,
+                 i.person_details, i.incident_details, i.notes`,
       [req.params.id, req.userId, value(req.body ?? {})],
     );
 
@@ -181,6 +182,21 @@ router.patch(
     if (text !== null && text.length > MAX_CRIME_REFERENCE) throw badRequest('crime_reference is too long');
     return text;
   }),
+);
+
+router.patch(
+  '/:id/person-details',
+  updateIncident('person_details', ({ person_details }) => optionalText(person_details, 'person_details')),
+);
+
+router.patch(
+  '/:id/incident-details',
+  updateIncident('incident_details', ({ incident_details }) => optionalText(incident_details, 'incident_details')),
+);
+
+router.patch(
+  '/:id/notes',
+  updateIncident('notes', ({ notes }) => optionalText(notes, 'notes')),
 );
 
 const linkParams = (req) => {
